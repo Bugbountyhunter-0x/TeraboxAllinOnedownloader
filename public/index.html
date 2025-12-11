@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Terabox Downloader with Ad Unlock</title>
+  <style>
+    body{font-family:Arial,sans-serif;background:#f4f6f8;margin:0;padding:20px;}
+    h1{text-align:center;}
+    .input-row{display:flex;gap:10px;justify-content:center;margin:20px 0;}
+    input{flex:1;max-width:500px;padding:10px;border-radius:8px;border:1px solid #ccc;}
+    button{padding:10px 18px;border:none;background:#0070f3;color:#fff;border-radius:8px;cursor:pointer;}
+    .folder{margin:12px 0;padding:12px;background:#fff;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
+    .folder h2{margin:0 0 10px;font-size:18px;}
+    .file{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #eee;}
+    .file button{background:#00b341;}
+    #overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;z-index:100;color:#fff;font-size:22px;flex-direction:column;}
+  </style>
+</head>
+<body>
+  <h1>Terabox Downloader</h1>
+
+  <div class="input-row">
+    <input id="url" placeholder="Paste your Terabox link" />
+    <button id="extractBtn">Extract</button>
+  </div>
+
+  <div id="output"></div>
+
+  <div id="overlay">
+    <div>🎬 Watching Ad... <span id="count">10</span>s</div>
+  </div>
+
+  <script>
+    const output=document.getElementById('output');
+    const overlay=document.getElementById('overlay');
+    const count=document.getElementById('count');
+
+    document.getElementById('extractBtn').onclick=async()=>{
+      const url=document.getElementById('url').value.trim();
+      if(!url) return alert('Please paste a link!');
+      output.innerHTML='⏳ Extracting...';
+
+      const res=await fetch("/api/extract",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url})});
+      const data=await res.json();
+      if(data.error){output.innerHTML='❌ '+data.error;return;}
+
+      let html='';
+      for(const [folder,files] of Object.entries(data.structure)){
+        html+=`<div class="folder"><h2>${folder}</h2>`;
+        files.forEach(f=>{
+          html+=`<div class="file"><span>${f.name}</span><button onclick="startAd('${f.url}')">Download</button></div>`;
+        });
+        html+='</div>';
+      }
+      output.innerHTML=html;
+    };
+
+    async function startAd(fileUrl){
+      overlay.style.display='flex';
+      let seconds=10;
+      count.textContent=seconds;
+      const timer=setInterval(()=>{seconds--;count.textContent=seconds;if(seconds<=0)clearInterval(timer);},1000);
+
+      const res=await fetch("/api/unlock",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:fileUrl})});
+      const data=await res.json();
+      overlay.style.display='none';
+      if(data.downloadUrl) window.open(data.downloadUrl,"_blank"); else alert('Error unlocking download');
+    }
+  </script>
+</body>
+</html>
